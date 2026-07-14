@@ -466,3 +466,10 @@
 .known-subscription-json { margin-top:10px; max-height:280px; overflow:auto; background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:10px; font-size:12px; }
 @media (max-width:900px) { .subscription-grid { grid-template-columns:1fr; } }
 @media (max-width:680px) { .subscription-form-grid, .known-id-row { grid-template-columns:1fr; } .subscription-form-grid .full-span { grid-column:auto; } .setup-links { grid-template-columns:1fr; } }
+
+/* Ensure the native hidden attribute always wins over view layout rules. */
+[hidden],
+.subscription-view[hidden],
+.explorer-only[hidden] {
+  display: none !important;
+}
