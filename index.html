@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Manus API Explorer</title>
+  <link rel="stylesheet" href="./assets/styles.css"/>
+</head>
+<body>
+  <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:14px;">
+    <h1>Manus API Explorer</h1>
+    <span class="pill" id="baseUrlPill" style="display:none;">Base URL: <span id="baseUrl" class="mono"></span></span>
+  </div>
+
+  <!-- ── Step 1: Login ── -->
+  <div class="panels">
+    <div class="panel open" id="panelLogin">
+      <div class="panel-header" id="panelLoginHeader">
+        <div class="panel-step">1</div>
+        <div class="panel-title">Connect &amp; Authenticate</div>
+        <div class="panel-summary" id="panelLoginSummary"></div>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
+        <div class="auth-layout">
+          <div class="auth-left">
+            <div class="auth-grid-top">
+              <div>
+                <label>Endpoint</label>
+                <select id="endpoint" style="font-size:12px;">
+                  <option value="https://server.manus.plus">LIVE — server.manus.plus</option>
+                  <option value="https://server-test.manus.plus" selected>TEST — server-test.manus.plus</option>
+                  <option value="https://server-demo.manus.plus">DEMO — server-demo.manus.plus</option>
+                </select>
+              </div>
+              <div>
+                <label>Client</label>
+                <input id="client" type="text" value="" placeholder="e.g. mse"/>
+              </div>
+              <div>
+                <label>Instance <span id="instanceRequired" style="color:var(--danger);display:none;">*required</span><span id="instanceOptional" style="color:var(--muted);"> (optional)</span></label>
+                <input id="instance" type="text" value="" placeholder=""/>
+              </div>
+            </div>
+            <div class="auth-grid-bottom">
+              <div>
+                <label>Username</label>
+                <input id="username" type="text" autocomplete="username"/>
+              </div>
+              <div>
+                <label>Password</label>
+                <div style="position:relative;">
+                  <input id="password" type="password" autocomplete="current-password" style="padding-right:38px;"/>
+                  <button id="btnTogglePw" type="button" title="Show/hide password" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px 4px;margin:0;color:#666;font-size:16px;line-height:1;">👁</button>
+                </div>
+              </div>
+            </div>
+            <div class="row" style="margin-top:12px;">
+              <button id="btnLogin" class="btn primary">Log in</button>
+              <button id="btnLogout" class="btn">Log out</button>
+            </div>
+          </div>
+          <div class="auth-right">
+            <div id="authPreviewWrap" class="auth-preview-wrap is-hidden">
+              <div class="previewBox">
+                <div class="auth-preview-title">Connection Preview</div>
+                <div id="authStatus" class="status">Not authenticated.</div>
+                <div class="hint" style="margin-top:6px;">The explorer will use <span class="mono">/{client}/{instance}</span> as base path.</div>
+                <div style="margin-top:10px;">
+                  <div class="small">Token request preview</div>
+                  <div id="tokenPreview" class="token-preview"></div>
+                  <div id="tokenExpiryInfo" class="hint" style="margin-top:8px;">Token expiration will be shown here after authentication.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 2: Resource & Operation ── -->
+    <div class="panel explorer-only" id="panelResource">
+      <div class="panel-header" id="panelResourceHeader">
+        <div class="panel-step">2</div>
+        <div class="panel-title">Select Resource &amp; Operation</div>
+        <div class="panel-summary" id="panelResourceSummary">Log in first</div>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
+        <div class="resource-layout">
+          <div>
+            <label>Schema resource</label>
+            <select id="schemaResource"></select>
+            <div class="row" style="margin-top:8px;">
+              <button id="btnLoadResource" class="btn primary">Load schema</button>
+              <input id="opFilter" type="text" placeholder="Filter operations…" style="flex:1; min-width:140px;"/>
+            </div>
+            <div id="schemaStatus" class="status" style="margin-top:8px;">No schema loaded.</div>
+            <div class="row" style="margin-top:10px;">
+              <button id="btnCopySchemaJson" class="btn" type="button">Copy schema JSON</button>
+              <button id="btnCopySchemaUrl" class="btn" type="button">Copy schema URL</button>
+            </div>
+            <pre id="schemaJson" class="mono" style="display:none;"></pre>
+          </div>
+          <div>
+            <div class="small" style="margin-bottom:6px;">Operations</div>
+            <div id="opList" class="oplist"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tool-tabs" role="tablist" aria-label="Developer tool">
+    <button id="toolTabExplorer" class="tool-tab active" type="button" role="tab" aria-selected="true">API Explorer</button>
+    <button id="toolTabSubscription" class="tool-tab" type="button" role="tab" aria-selected="false">Webhook Subscription</button>
+  </div>
+
+  <section id="subscriptionView" class="subscription-view" hidden>
+    <div class="subscription-grid">
+      <div class="card subscription-card">
+        <div class="section-kicker">1. Local listener setup</div>
+        <h2>Download and start the webhook listener</h2>
+        <p class="small">The listener runs locally, answers webhook verification requests, and displays received notifications. The download link below is a placeholder until the GitHub release package is published.</p>
+        <div class="listener-actions">
+          <a id="listenerDownloadLink" class="btn primary" href="#" aria-disabled="true">Download webhook listener</a>
+          <a class="btn" href="https://dashboard.ngrok.com/signup" target="_blank" rel="noopener noreferrer">Create ngrok account</a>
+        </div>
+        <ol class="setup-steps">
+          <li>Download and extract the listener package.</li>
+          <li>Open PowerShell in the extracted folder and run the included start script.</li>
+          <li>Configure ngrok once with your own account token: <code>ngrok config add-authtoken YOUR_TOKEN</code>.</li>
+          <li>Start the listener and ngrok, then copy the public HTTPS URL.</li>
+        </ol>
+        <div class="setup-links">
+          <span>Local dashboard</span><code>http://localhost:3000</code>
+          <span>ngrok inspection</span><code>http://127.0.0.1:4040</code>
+        </div>
+        <div id="listenerSetupStatus" class="status warn">Download URL not configured yet.</div>
+      </div>
+
+      <div class="card subscription-card">
+        <div class="section-kicker">2. Create subscription</div>
+        <h2>Webhook subscription</h2>
+        <div class="subscription-form-grid">
+          <div class="full-span">
+            <label for="subscriptionPublisher">Publisher</label>
+            <input id="subscriptionPublisher" type="url" readonly />
+            <div class="hint">Generated from the selected endpoint, client and instance, followed by <span class="mono">/api/hook</span>.</div>
+          </div>
+          <div>
+            <label for="subscriptionEvent">Event</label>
+            <select id="subscriptionEvent" disabled><option value="">Open this tab to load events...</option></select>
+          </div>
+          <div>
+            <label for="subscriptionEventFilter">Filter events</label>
+            <input id="subscriptionEventFilter" type="text" placeholder="e.g. illness" />
+          </div>
+          <div class="full-span">
+            <label for="subscriptionSubscriber">Subscriber</label>
+            <input id="subscriptionSubscriber" type="url" placeholder="https://your-tunnel.ngrok-free.app/webhook" autocomplete="off" />
+            <div class="hint">Use the public ngrok URL that handles both verification GET requests and webhook POST notifications.</div>
+          </div>
+        </div>
+        <div class="token-state-row">
+          <span>Instance token</span>
+          <span id="subscriptionTokenStatus" class="pill">Not authenticated</span>
+        </div>
+        <div class="previewBox">
+          <div class="small">Subscription request preview</div>
+          <pre id="subscriptionRequestPreview">Authenticate and complete the form to preview the request.</pre>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <button id="btnCreateSubscription" class="btn primary" type="button" disabled>Create subscription</button>
+          <button id="btnReloadHookEvents" class="btn" type="button">Reload events</button>
+        </div>
+        <div id="subscriptionCreateStatus" class="status">Ready.</div>
+        <div class="previewBox">
+          <div class="small">Central response</div>
+          <pre id="subscriptionResponse">No subscription request sent yet.</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="card subscription-card known-subscriptions-card">
+      <div class="section-kicker">3. Known subscriptions</div>
+      <h2>Load and remember subscriptions by ID</h2>
+      <p class="small">Subscriptions created here are remembered automatically in this browser. You can also enter an existing subscription ID below.</p>
+      <div class="known-id-row">
+        <input id="knownSubscriptionId" type="text" placeholder="Enter subscription ID" autocomplete="off" />
+        <button id="btnAddKnownSubscription" class="btn primary" type="button">Add and load</button>
+        <button id="btnRefreshKnownSubscriptions" class="btn" type="button">Refresh all</button>
+      </div>
+      <div id="knownSubscriptionStatus" class="status">No subscription loaded yet.</div>
+      <div id="knownSubscriptionList" class="known-subscription-list"></div>
+    </div>
+  </section>
+
+  <!-- ── Step 3: Request parameters (accordion panel) ── -->
+  <div class="panels explorer-only" id="requestPanels" style="margin-bottom:12px;">
+    <div class="panel" id="panelRequest">
+      <div class="panel-header" id="panelRequestHeader">
+        <div class="panel-step">3</div>
+        <div class="panel-title">Request Path &amp; Query Parameters</div>
+        <div class="panel-summary" id="panelRequestSummary">Select an operation first</div>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+          <div>
+            <div class="small">Selected operation</div>
+            <div id="opTitle" class="mono" style="font-weight:800;">(none)</div>
+            <div id="opDesc" class="small" style="margin-top:2px;"></div>
+          </div>
+          <div class="right" style="align-items:center; gap:8px;">
+            <select id="previewLimit" style="width:auto;">
+              <option value="10" selected>Preview: 10</option>
+              <option value="50">Preview: 50</option>
+              <option value="100">Preview: 100</option>
+              <option value="500">Preview: 500</option>
+              <option value="1000">Preview: 1000</option>
+            </select>
+            <button id="btnCopyUrl" class="btn" disabled>Copy URL</button>
+            <button id="btnSend" class="btn primary" disabled>Send →</button>
+          </div>
+        </div>
+        <div class="request-preview-grid">
+          <div class="request-url-stack">
+            <div>
+              <label>Request URL</label>
+              <div class="request-url-box">
+                <div id="requestUrlDisplay" class="request-url-main"></div>
+                <div id="requestUrlQuery" class="request-url-query"></div>
+              </div>
+              <input id="requestUrl" class="request-url-raw" type="text" readonly tabindex="-1" aria-readonly="true"/>
+            </div>
+            <div style="max-width:320px;">
+              <label>Version</label>
+              <select id="requestVersion">
+                <option value="1" selected>Version 1 (default)</option>
+                <option value="2">Version 2</option>
+              </select>
+              <div id="requestVersionHint" class="hint" style="display:none;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="previewBox">
+          <div class="small">Applied request headers</div>
+          <pre id="requestHeadersPreview"></pre>
+        </div>
+        <div id="paramArea" style="margin-top:4px;"></div>
+        <div id="reqStatus" class="status" style="margin-top:10px;">Ready.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Response (full width, always visible) ── -->
+  <div class="workspace explorer-only" id="responseWorkspace">
+    <div class="respHeader">
+      <div class="respLeft">
+        <div class="small">Response</div>
+        <div id="respMeta" class="mono respMeta">(none)</div>
+        <div class="respActionsUnder">
+          <button id="btnCopyResponse" class="btn" disabled>Copy</button>
+          <button id="btnDownloadResponse" class="btn" disabled>Download JSON</button>
+          <button id="btnExportCsv" class="btn" style="display:none;" disabled>Download CSV</button>
+        </div>
+      </div>
+      <div class="tabs" id="respTabs">
+        <div class="tab active" data-tab="summary">Summary</div>
+        <div class="tab" data-tab="json">JSON</div>
+        <div class="tab" data-tab="table">Table</div>
+      </div>
+    </div>
+    <div id="respSummary" style="margin-top:10px;"></div>
+    <pre id="respJson" style="display:none; margin-top:10px; background:#fff; border:1px solid var(--border); border-radius:10px; padding:10px; overflow:auto; max-height:520px; font-size:12px;"></pre>
+    <div id="respTable" style="display:none; margin-top:10px; overflow:auto; max-height:560px;"></div>
+    <div class="footerNote">Large responses are preview-limited. Use Download JSON for full payloads.</div>
+  </div>
+
+
+  <!-- Picker modal -->
+  <div id="pickerOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal">
+      <div class="modalHeader">
+        <div>
+          <div class="small" id="pickerTitle">Pick</div>
+          <div class="hint" id="pickerHint"></div>
+        </div>
+        <button class="btn" type="button" id="pickerCloseTop">Close</button>
+      </div>
+      <div class="modalBody">
+        <input id="pickerSearch" type="text" placeholder="Search..." />
+        <div class="modalList" id="pickerList"></div>
+        <div class="hint" id="pickerMeta"></div>
+      </div>
+      <div class="modalFooter">
+        <button class="btn" type="button" id="pickerCloseBottom">Close</button>
+      </div>
+    </div>
+  </div>
+<script src="./assets/app.js"></script>
+</body>
+</html>
