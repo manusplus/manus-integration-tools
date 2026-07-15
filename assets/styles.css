@@ -442,7 +442,8 @@
 .tool-tab { border:0; background:transparent; color:var(--muted); padding:9px 14px; border-radius:8px; font-weight:700; cursor:pointer; }
 .tool-tab.active { background:var(--accent); color:#fff; }
 .subscription-view { display:grid; gap:12px; margin-bottom:12px; }
-.subscription-grid { display:grid; grid-template-columns:minmax(0, .9fr) minmax(0, 1.4fr); gap:12px; align-items:start; }
+.subscription-lower-grid { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:12px; align-items:stretch; }
+.subscription-lower-grid > .subscription-card { height:100%; }
 .subscription-card h2 { margin:3px 0 8px; font-size:17px; }
 .section-kicker { color:var(--accent); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
 .listener-actions { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
@@ -464,7 +465,7 @@
 .known-subscription-summary dt { color:var(--muted); }
 .known-subscription-summary dd { margin:0; word-break:break-word; }
 .known-subscription-json { margin-top:10px; max-height:280px; overflow:auto; background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:10px; font-size:12px; }
-@media (max-width:900px) { .subscription-grid { grid-template-columns:1fr; } }
+@media (max-width:900px) { .subscription-lower-grid { grid-template-columns:1fr; } }
 @media (max-width:680px) { .subscription-form-grid, .known-id-row { grid-template-columns:1fr; } .subscription-form-grid .full-span { grid-column:auto; } .setup-links { grid-template-columns:1fr; } }
 
 /* Ensure the native hidden attribute always wins over view layout rules. */

@@ -119,8 +119,7 @@
   </div>
 
   <section id="subscriptionView" class="subscription-view" hidden>
-    <div class="subscription-grid">
-      <div class="card subscription-card">
+    <div class="card subscription-card subscription-listener-card">
         <div class="section-kicker">1. Local listener setup</div>
         <h2>Download and start the webhook listener</h2>
         <p class="small">The listener runs locally, answers webhook verification requests, and displays received notifications. The download link below is a placeholder until the GitHub release package is published.</p>
@@ -139,9 +138,10 @@
           <span>ngrok inspection</span><code>http://127.0.0.1:4040</code>
         </div>
         <div id="listenerSetupStatus" class="status warn">Download URL not configured yet.</div>
-      </div>
+    </div>
 
-      <div class="card subscription-card">
+    <div class="subscription-lower-grid">
+      <div class="card subscription-card subscription-create-card">
         <div class="section-kicker">2. Create subscription</div>
         <h2>Webhook subscription</h2>
         <div class="subscription-form-grid">
@@ -191,10 +191,9 @@
           <pre id="subscriptionResponse">No subscription request sent yet.</pre>
         </div>
       </div>
-    </div>
 
-    <div class="card subscription-card known-subscriptions-card">
-      <div class="section-kicker">3. Known subscriptions</div>
+      <div class="card subscription-card known-subscriptions-card">
+        <div class="section-kicker">3. Known subscriptions</div>
       <h2>Load and remember subscriptions by ID</h2>
       <p class="small">Subscriptions created here are remembered automatically in this browser. You can also enter an existing subscription ID below.</p>
       <div class="known-id-row">
@@ -202,7 +201,8 @@
         <button id="btnAddKnownSubscription" class="btn primary" type="button">Add and load</button>
       </div>
       <div id="knownSubscriptionStatus" class="status">No subscription loaded yet.</div>
-      <div id="knownSubscriptionList" class="known-subscription-list"></div>
+        <div id="knownSubscriptionList" class="known-subscription-list"></div>
+      </div>
     </div>
   </section>
 
