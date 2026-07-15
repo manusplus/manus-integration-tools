@@ -4167,11 +4167,14 @@ function getRememberedSpecialParamValue(name){
   const btnReloadHookEvents = document.getElementById('btnReloadHookEvents');
   const knownSubscriptionIdEl = document.getElementById('knownSubscriptionId');
   const btnAddKnownSubscription = document.getElementById('btnAddKnownSubscription');
-  const btnRefreshKnownSubscriptions = document.getElementById('btnRefreshKnownSubscriptions');
   const knownSubscriptionStatusEl = document.getElementById('knownSubscriptionStatus');
   const knownSubscriptionListEl = document.getElementById('knownSubscriptionList');
   const listenerDownloadLinkEl = document.getElementById('listenerDownloadLink');
   const listenerSetupStatusEl = document.getElementById('listenerSetupStatus');
+  const listenerDashboardLinkEl = document.getElementById('listenerDashboardLink');
+  const btnOpenListenerDashboard = document.getElementById('btnOpenListenerDashboard');
+  const btnCopyListenerDashboard = document.getElementById('btnCopyListenerDashboard');
+  const listenerDashboardStatusEl = document.getElementById('listenerDashboardStatus');
 
   let hookEventItems = [];
   let hookEventsLoaded = false;
@@ -4229,13 +4232,60 @@ function getRememberedSpecialParamValue(name){
     return base ? base.replace(/\/+$/, '') + '/api/hook' : '';
   }
 
-  function normalizeSubscriberUrl(value){
-    const raw = String(value || '').trim().replace(/\/+$/, '');
+  function parseListenerUrls(value){
+    const raw = String(value || '').trim();
     if (!raw) throw new Error('Enter the public ngrok subscriber URL.');
+
     let parsed;
     try { parsed = new URL(raw); } catch (_) { throw new Error('Subscriber must be a valid absolute URL.'); }
     if (parsed.protocol !== 'https:') throw new Error('Subscriber must use HTTPS.');
-    return raw;
+
+    parsed.search = '';
+    parsed.hash = '';
+    let path = parsed.pathname.replace(/\/+$/, '');
+
+    if (!path || path === '/') {
+      path = '/webhook';
+    }
+
+    const subscriberUrl = new URL(parsed.toString());
+    subscriberUrl.pathname = path;
+
+    const dashboardUrl = new URL(parsed.toString());
+    dashboardUrl.pathname = path.toLowerCase() === '/webhook' ? '/' : '/';
+
+    return {
+      subscriber: subscriberUrl.toString().replace(/\/$/, path === '/webhook' ? '' : '/'),
+      dashboard: dashboardUrl.toString()
+    };
+  }
+
+  function normalizeSubscriberUrl(value){
+    return parseListenerUrls(value).subscriber;
+  }
+
+  function updateListenerDashboardLink(){
+    if (!listenerDashboardLinkEl) return;
+
+    let dashboard = '';
+    try {
+      dashboard = parseListenerUrls(subscriptionSubscriberEl ? subscriptionSubscriberEl.value : '').dashboard;
+    } catch (_) {}
+
+    if (!dashboard){
+      listenerDashboardLinkEl.textContent = 'Enter the subscriber URL to create the dashboard link.';
+      listenerDashboardLinkEl.href = '#';
+      listenerDashboardLinkEl.setAttribute('aria-disabled', 'true');
+      if (btnOpenListenerDashboard) btnOpenListenerDashboard.disabled = true;
+      if (btnCopyListenerDashboard) btnCopyListenerDashboard.disabled = true;
+      return;
+    }
+
+    listenerDashboardLinkEl.textContent = dashboard;
+    listenerDashboardLinkEl.href = dashboard;
+    listenerDashboardLinkEl.removeAttribute('aria-disabled');
+    if (btnOpenListenerDashboard) btnOpenListenerDashboard.disabled = false;
+    if (btnCopyListenerDashboard) btnCopyListenerDashboard.disabled = false;
   }
 
   function maskTokenForSubscription(token){
@@ -4267,6 +4317,7 @@ function getRememberedSpecialParamValue(name){
 
   function updateSubscriptionUi(){
     if (!subscriptionPublisherEl) return;
+    updateListenerDashboardLink();
     const publisher = buildHookPublisher();
     subscriptionPublisherEl.value = publisher;
 
@@ -4407,8 +4458,51 @@ function getRememberedSpecialParamValue(name){
     const url = CENTRAL_HOOK_SUBSCRIPTION_URL + encodeURIComponent(clean);
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     const result = await readCentralResponse(response);
-    if (!response.ok) throw new Error('Unable to load subscription ' + clean + ': HTTP ' + response.status + (result.text ? ' — ' + result.text : ''));
+    if (!response.ok){
+      const error = new Error('Unable to load subscription ' + clean + ': HTTP ' + response.status + (result.text ? ' — ' + result.text : ''));
+      error.httpStatus = response.status;
+      error.responseBody = result.body;
+      throw error;
+    }
     return result.body;
+  }
+
+  function wait(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function waitForVerifiedSubscription(subscriptionId, options){
+    const settings = Object.assign({ attempts: 10, delayMs: 2000 }, options || {});
+    let lastError = null;
+
+    // Central only exposes the subscription after subscriber verification finishes.
+    await wait(settings.delayMs);
+
+    for (let attempt = 1; attempt <= settings.attempts; attempt++){
+      setSubscriptionStatus(
+        subscriptionCreateStatusEl,
+        'Waiting for subscriber verification... Attempt ' + attempt + ' of ' + settings.attempts + '.',
+        'warn'
+      );
+
+      try {
+        return await getSubscriptionById(subscriptionId);
+      } catch (e) {
+        lastError = e;
+        const retryable = e && (e.httpStatus === 500 || e.httpStatus === 404);
+        if (!retryable) throw e;
+        if (attempt < settings.attempts) await wait(settings.delayMs);
+      }
+    }
+
+    const timeoutError = new Error(
+      'Verification did not complete within ' +
+      Math.round((settings.attempts * settings.delayMs) / 1000) +
+      ' seconds. The subscription ID has been saved locally.'
+    );
+    timeoutError.cause = lastError;
+    timeoutError.verificationTimeout = true;
+    throw timeoutError;
   }
 
   function pickSubscriptionField(obj, keys){
@@ -4511,8 +4605,23 @@ function getRememberedSpecialParamValue(name){
       const subscriptionId = extractSubscriptionId(result.body);
       if (subscriptionId){
         rememberSubscriptionId(subscriptionId);
-        setSubscriptionStatus(subscriptionCreateStatusEl, 'Subscription created. ID: ' + subscriptionId, 'ok');
-        await renderKnownSubscriptions(subscriptionId);
+        setSubscriptionStatus(
+          subscriptionCreateStatusEl,
+          'Subscription request accepted. ID: ' + subscriptionId + '. Waiting for subscriber verification...',
+          'warn'
+        );
+
+        try {
+          await waitForVerifiedSubscription(subscriptionId, { attempts: 10, delayMs: 2000 });
+          setSubscriptionStatus(subscriptionCreateStatusEl, 'Subscription verified and active. ID: ' + subscriptionId, 'ok');
+          await renderKnownSubscriptions(subscriptionId);
+        } catch (verificationError) {
+          if (verificationError && verificationError.verificationTimeout){
+            setSubscriptionStatus(subscriptionCreateStatusEl, verificationError.message, 'warn');
+          } else {
+            throw verificationError;
+          }
+        }
       } else {
         setSubscriptionStatus(subscriptionCreateStatusEl, 'Subscription created, but no subscription ID could be identified in the response.', 'warn');
       }
@@ -4551,7 +4660,25 @@ function getRememberedSpecialParamValue(name){
   if (btnReloadHookEvents) btnReloadHookEvents.addEventListener('click', loadHookEvents);
   if (btnCreateSubscription) btnCreateSubscription.addEventListener('click', createHookSubscription);
   if (btnAddKnownSubscription) btnAddKnownSubscription.addEventListener('click', addKnownSubscription);
-  if (btnRefreshKnownSubscriptions) btnRefreshKnownSubscriptions.addEventListener('click', () => renderKnownSubscriptions());
+  if (btnOpenListenerDashboard) btnOpenListenerDashboard.addEventListener('click', () => {
+    try {
+      const dashboard = parseListenerUrls(subscriptionSubscriberEl ? subscriptionSubscriberEl.value : '').dashboard;
+      window.open(dashboard, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      if (listenerDashboardStatusEl) listenerDashboardStatusEl.textContent = String(e && e.message ? e.message : e);
+    }
+  });
+
+  if (btnCopyListenerDashboard) btnCopyListenerDashboard.addEventListener('click', async () => {
+    try {
+      const dashboard = parseListenerUrls(subscriptionSubscriberEl ? subscriptionSubscriberEl.value : '').dashboard;
+      await copyTextToClipboard(dashboard);
+      if (listenerDashboardStatusEl) listenerDashboardStatusEl.textContent = 'Dashboard URL copied.';
+    } catch (e) {
+      if (listenerDashboardStatusEl) listenerDashboardStatusEl.textContent = String(e && e.message ? e.message : e);
+    }
+  });
+
   if (knownSubscriptionIdEl) knownSubscriptionIdEl.addEventListener('keydown', event => {
     if (event.key === 'Enter'){ event.preventDefault(); addKnownSubscription(); }
   });

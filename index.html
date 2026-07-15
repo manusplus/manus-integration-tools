@@ -160,8 +160,17 @@
           </div>
           <div class="full-span">
             <label for="subscriptionSubscriber">Subscriber</label>
-            <input id="subscriptionSubscriber" type="url" placeholder="https://your-tunnel.ngrok-free.app/webhook" autocomplete="off" />
-            <div class="hint">Use the public ngrok URL that handles both verification GET requests and webhook POST notifications.</div>
+            <input id="subscriptionSubscriber" type="url" placeholder="https://your-tunnel.ngrok-free.app or .../webhook" autocomplete="off" />
+            <div class="hint">Paste the public ngrok URL. When only the root URL is entered, <span class="mono">/webhook</span> is added automatically to the subscription request.</div>
+          </div>
+          <div class="full-span listener-dashboard-box">
+            <label>Listener dashboard</label>
+            <a id="listenerDashboardLink" class="listener-dashboard-link mono" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">Enter the subscriber URL to create the dashboard link.</a>
+            <div class="row" style="margin-top:8px;">
+              <button id="btnOpenListenerDashboard" class="btn" type="button" disabled>Open dashboard</button>
+              <button id="btnCopyListenerDashboard" class="btn" type="button" disabled>Copy dashboard URL</button>
+            </div>
+            <div id="listenerDashboardStatus" class="hint">The dashboard opens at the ngrok root URL. The first visit may show ngrok's browser warning.</div>
           </div>
         </div>
         <div class="token-state-row">
@@ -191,7 +200,6 @@
       <div class="known-id-row">
         <input id="knownSubscriptionId" type="text" placeholder="Enter subscription ID" autocomplete="off" />
         <button id="btnAddKnownSubscription" class="btn primary" type="button">Add and load</button>
-        <button id="btnRefreshKnownSubscriptions" class="btn" type="button">Refresh all</button>
       </div>
       <div id="knownSubscriptionStatus" class="status">No subscription loaded yet.</div>
       <div id="knownSubscriptionList" class="known-subscription-list"></div>
