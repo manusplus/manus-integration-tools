@@ -3363,6 +3363,54 @@ for (const item of items) {
     return ep.includes('server.manus.plus') && !ep.includes('server-test') && !ep.includes('server-demo');
   }
 
+  function isLivePublisher(publisher){
+    const value = String(publisher || '').trim();
+    if (!value) return false;
+
+    try {
+      return new URL(value).hostname.toLowerCase() === 'server.manus.plus';
+    } catch (_) {
+      const lower = value.toLowerCase();
+      return lower.includes('://server.manus.plus/') || lower.startsWith('server.manus.plus/');
+    }
+  }
+
+  function getSubscriptionDeleteState(publisher){
+    const value = String(publisher || '').trim();
+
+    if (!value){
+      return {
+        allowed: false,
+        label: '🔒 Delete subscription',
+        title: 'Deletion is disabled until the subscription publisher can be loaded and verified.'
+      };
+    }
+
+    if (isLivePublisher(value)){
+      return {
+        allowed: false,
+        label: '🔒 Delete subscription',
+        title: 'Deleting subscriptions with a LIVE publisher is disabled.'
+      };
+    }
+
+    return {
+      allowed: true,
+      label: 'Delete subscription',
+      title: 'Delete this subscription from Central.'
+    };
+  }
+
+  function updateKnownSubscriptionDeleteState(){
+    document.querySelectorAll('[data-subscription-delete-button="1"]').forEach(button => {
+      const state = getSubscriptionDeleteState(button.dataset.subscriptionPublisher || '');
+      button.disabled = !state.allowed;
+      button.textContent = state.label;
+      button.title = state.title;
+      button.setAttribute('aria-disabled', state.allowed ? 'false' : 'true');
+    });
+  }
+
   function buildSchemaBasePath(){
     const endpoint = String(endpointEl.value || '').trim().replace(/\/+$/,'');
     const client = normalizeSegment(clientEl.value);
@@ -4467,6 +4515,30 @@ function getRememberedSpecialParamValue(name){
     return result.body;
   }
 
+  async function deleteSubscriptionById(id){
+    const clean = String(id || '').trim();
+    if (!clean) throw new Error('Subscription ID is required.');
+
+    const url = CENTRAL_HOOK_SUBSCRIPTION_URL + encodeURIComponent(clean);
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json' }
+    });
+    const result = await readCentralResponse(response);
+
+    if (!response.ok){
+      const error = new Error(
+        'Unable to delete subscription ' + clean + ': HTTP ' + response.status +
+        (result.text ? ' — ' + result.text : '')
+      );
+      error.httpStatus = response.status;
+      error.responseBody = result.body;
+      throw error;
+    }
+
+    return result.body;
+  }
+
   function wait(ms){
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -4526,10 +4598,68 @@ function getRememberedSpecialParamValue(name){
     const refresh = document.createElement('button');
     refresh.className = 'btn'; refresh.type = 'button'; refresh.textContent = 'Refresh';
     refresh.addEventListener('click', async () => { await renderKnownSubscriptions(id); });
+    const publisher = result.ok
+      ? pickSubscriptionField(result.data, ['publisher'])
+      : '';
+    const deleteState = getSubscriptionDeleteState(publisher);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'btn danger-action';
+    deleteButton.type = 'button';
+    deleteButton.dataset.subscriptionDeleteButton = '1';
+    deleteButton.dataset.subscriptionPublisher = publisher;
+    deleteButton.disabled = !deleteState.allowed;
+    deleteButton.textContent = deleteState.label;
+    deleteButton.title = deleteState.title;
+    deleteButton.setAttribute('aria-disabled', deleteState.allowed ? 'false' : 'true');
+    deleteButton.addEventListener('click', async () => {
+      const currentDeleteState = getSubscriptionDeleteState(publisher);
+      if (!currentDeleteState.allowed) {
+        const message = publisher && isLivePublisher(publisher)
+          ? 'Deleting subscription ' + id + ' is disabled because its publisher points to LIVE: ' + publisher
+          : 'Deleting subscription ' + id + ' is disabled until its publisher can be loaded and verified.';
+        setSubscriptionStatus(knownSubscriptionStatusEl, message, 'warn');
+        return;
+      }
+
+      const confirmed = window.confirm(
+        'Delete subscription ' + id + '?\n\n' +
+        'This sends a DELETE request to Central and cannot be undone.'
+      );
+      if (!confirmed) return;
+
+      deleteButton.disabled = true;
+      refresh.disabled = true;
+      setSubscriptionStatus(
+        knownSubscriptionStatusEl,
+        'Deleting subscription ' + id + '...',
+        'warn'
+      );
+
+      try {
+        await deleteSubscriptionById(id);
+        forgetSubscriptionId(id);
+        await renderKnownSubscriptions();
+        setSubscriptionStatus(
+          knownSubscriptionStatusEl,
+          'Subscription ' + id + ' was deleted successfully.',
+          'ok'
+        );
+      } catch (e) {
+        deleteButton.disabled = false;
+        refresh.disabled = false;
+        setSubscriptionStatus(
+          knownSubscriptionStatusEl,
+          String(e && e.message ? e.message : e),
+          'danger'
+        );
+      }
+    });
+
     const forget = document.createElement('button');
     forget.className = 'btn'; forget.type = 'button'; forget.textContent = 'Forget locally';
     forget.addEventListener('click', () => { forgetSubscriptionId(id); renderKnownSubscriptions(); });
-    actions.append(refresh, forget);
+    actions.append(refresh, deleteButton, forget);
     head.append(idEl, actions);
     item.appendChild(head);
 
@@ -4581,6 +4711,7 @@ function getRememberedSpecialParamValue(name){
       catch (e) { return { id, ok: false, error: String(e && e.message ? e.message : e) }; }
     }));
     results.forEach(result => knownSubscriptionListEl.appendChild(renderKnownSubscriptionItem(result.id, result)));
+    updateKnownSubscriptionDeleteState();
     const okCount = results.filter(x => x.ok).length;
     setSubscriptionStatus(knownSubscriptionStatusEl, 'Loaded ' + okCount + ' of ' + ids.length + ' known subscription(s).', okCount === ids.length ? 'ok' : 'warn');
     if (focusId){

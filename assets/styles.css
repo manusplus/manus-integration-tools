@@ -479,3 +479,15 @@
 .listener-dashboard-link { display:block; padding:9px 10px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--accent); text-decoration:none; word-break:break-all; }
 .listener-dashboard-link:hover { text-decoration:underline; }
 .listener-dashboard-link[aria-disabled="true"] { color:var(--muted); pointer-events:none; }
+
+
+/* Destructive subscription action */
+.btn.danger-action {
+  border-color: rgba(185, 28, 28, .35);
+  background: rgba(185, 28, 28, .07);
+  color: var(--danger);
+}
+.btn.danger-action:hover {
+  border-color: var(--danger);
+  background: rgba(185, 28, 28, .13);
+}
