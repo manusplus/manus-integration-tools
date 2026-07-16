@@ -120,22 +120,21 @@
 
   <section id="subscriptionView" class="subscription-view" hidden>
     <div class="card subscription-card subscription-listener-card">
-        <div class="section-kicker">1. Local listener setup</div>
+        <div class="section-kicker">1. Local subscriber setup</div>
         <h2>Download and start the webhook listener</h2>
-        <p class="small">The listener runs locally, answers webhook verification requests, and displays received notifications. The download link below is a placeholder until the GitHub release package is published.</p>
+        <p class="small">The listener runs locally, answers webhook verification requests, and displays received notifications.</p>
         <div class="listener-actions">
           <a id="listenerDownloadLink" class="btn primary" href="#" aria-disabled="true">Download webhook listener</a>
           <a class="btn" href="https://dashboard.ngrok.com/signup" target="_blank" rel="noopener noreferrer">Create ngrok account</a>
         </div>
         <ol class="setup-steps">
-          <li>Download and extract the listener package.</li>
-          <li>Open PowerShell in the extracted folder and run the included start script.</li>
-          <li>Configure ngrok once with your own account token: <code>ngrok config add-authtoken YOUR_TOKEN</code>.</li>
-          <li>Start the listener and ngrok, then copy the public HTTPS URL.</li>
+          <li>Download and extract contents of the zip to a folder</li>
+          <li>Configure ngrok in new powershell tab once with your own account token: <code>ngrok config add-authtoken YOUR_TOKEN</code>.</li>
+		  <li>Open PowerShell in the extracted folder and run powershell -ExecutionPolicy Bypass -File start-webhook-listener.ps1</li>          
+          <li>Now both subscriber/listener and ngrok are running, then copy the public ngrok HTTPS URL.</li>
         </ol>
         <div class="setup-links">
-          <span>Local dashboard</span><code>http://localhost:3000</code>
-          <span>ngrok inspection</span><code>http://127.0.0.1:4040</code>
+          <span>Local dashboard for listener</span><code>http://localhost:3000</code>         
         </div>
         <div id="listenerSetupStatus" class="status warn">Download URL not configured yet.</div>
     </div>
