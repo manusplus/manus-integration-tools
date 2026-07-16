@@ -491,3 +491,12 @@
   border-color: var(--danger);
   background: rgba(185, 28, 28, .13);
 }
+
+
+.location-fetch-card { margin-top:12px; }
+.location-fetch-row { display:grid; grid-template-columns:minmax(0, 1fr) auto auto; gap:8px; align-items:center; }
+.location-result-card { margin-top:12px; border:1px solid var(--border); border-radius:10px; background:#f8fafc; padding:12px; }
+.location-result-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+.location-requested-url { margin-top:4px; word-break:break-all; font-size:12px; }
+.location-result-card pre { margin-top:10px; max-height:420px; overflow:auto; background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px; font-size:12px; white-space:pre-wrap; word-break:break-word; }
+@media (max-width:760px) { .location-fetch-row { grid-template-columns:1fr; } }

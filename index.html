@@ -163,15 +163,6 @@
             <input id="subscriptionSubscriber" type="url" placeholder="https://your-tunnel.ngrok-free.app or .../webhook" autocomplete="off" />
             <div class="hint">Paste the public ngrok URL. When only the root URL is entered, <span class="mono">/webhook</span> is added automatically to the subscription request.</div>
           </div>
-          <div class="full-span listener-dashboard-box">
-            <label>Listener dashboard</label>
-            <a id="listenerDashboardLink" class="listener-dashboard-link mono" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">Enter the subscriber URL to create the dashboard link.</a>
-            <div class="row" style="margin-top:8px;">
-              <button id="btnOpenListenerDashboard" class="btn" type="button" disabled>Open dashboard</button>
-              <button id="btnCopyListenerDashboard" class="btn" type="button" disabled>Copy dashboard URL</button>
-            </div>
-            <div id="listenerDashboardStatus" class="hint">The dashboard opens at the ngrok root URL. The first visit may show ngrok's browser warning.</div>
-          </div>
         </div>
         <div class="token-state-row">
           <span>Instance token</span>
@@ -202,6 +193,32 @@
       </div>
       <div id="knownSubscriptionStatus" class="status">No subscription loaded yet.</div>
         <div id="knownSubscriptionList" class="known-subscription-list"></div>
+      </div>
+    </div>
+
+    <div class="card subscription-card location-fetch-card">
+      <div class="section-kicker">4. Fetch notification target</div>
+      <h2>Retrieve the resource from a notification location</h2>
+      <p class="small">Paste the complete <span class="mono">location</span> header from a received webhook notification. The request uses the current API Explorer authentication token.</p>
+      <label for="notificationLocationUrl">Location URL</label>
+      <div class="location-fetch-row">
+        <input id="notificationLocationUrl" type="url" placeholder="https://server-test.manus.plus/client/instance/api/node/..." autocomplete="off" />
+        <button id="btnFetchNotificationLocation" class="btn primary" type="button">Fetch location</button>
+        <button id="btnClearNotificationLocation" class="btn" type="button">Clear</button>
+      </div>
+      <div class="hint">For security, the URL must belong to the endpoint, client and instance currently selected above.</div>
+      <div id="notificationLocationStatus" class="status">Enter a location URL to retrieve its data.</div>
+      <div id="notificationLocationResult" class="location-result-card" hidden>
+        <div class="location-result-head">
+          <div>
+            <div class="small">Response</div>
+            <div id="notificationLocationMeta" class="mono"></div>
+          </div>
+          <button id="btnCopyNotificationLocationResponse" class="btn" type="button" disabled>Copy response</button>
+        </div>
+        <div class="small" style="margin-top:10px;">Requested URL</div>
+        <div id="notificationLocationRequestedUrl" class="mono location-requested-url"></div>
+        <pre id="notificationLocationResponse">No response yet.</pre>
       </div>
     </div>
   </section>

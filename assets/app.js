@@ -4219,10 +4219,15 @@ function getRememberedSpecialParamValue(name){
   const knownSubscriptionListEl = document.getElementById('knownSubscriptionList');
   const listenerDownloadLinkEl = document.getElementById('listenerDownloadLink');
   const listenerSetupStatusEl = document.getElementById('listenerSetupStatus');
-  const listenerDashboardLinkEl = document.getElementById('listenerDashboardLink');
-  const btnOpenListenerDashboard = document.getElementById('btnOpenListenerDashboard');
-  const btnCopyListenerDashboard = document.getElementById('btnCopyListenerDashboard');
-  const listenerDashboardStatusEl = document.getElementById('listenerDashboardStatus');
+  const notificationLocationUrlEl = document.getElementById('notificationLocationUrl');
+  const btnFetchNotificationLocation = document.getElementById('btnFetchNotificationLocation');
+  const btnClearNotificationLocation = document.getElementById('btnClearNotificationLocation');
+  const notificationLocationStatusEl = document.getElementById('notificationLocationStatus');
+  const notificationLocationResultEl = document.getElementById('notificationLocationResult');
+  const notificationLocationMetaEl = document.getElementById('notificationLocationMeta');
+  const notificationLocationRequestedUrlEl = document.getElementById('notificationLocationRequestedUrl');
+  const notificationLocationResponseEl = document.getElementById('notificationLocationResponse');
+  const btnCopyNotificationLocationResponse = document.getElementById('btnCopyNotificationLocationResponse');
 
   let hookEventItems = [];
   let hookEventsLoaded = false;
@@ -4312,29 +4317,6 @@ function getRememberedSpecialParamValue(name){
     return parseListenerUrls(value).subscriber;
   }
 
-  function updateListenerDashboardLink(){
-    if (!listenerDashboardLinkEl) return;
-
-    let dashboard = '';
-    try {
-      dashboard = parseListenerUrls(subscriptionSubscriberEl ? subscriptionSubscriberEl.value : '').dashboard;
-    } catch (_) {}
-
-    if (!dashboard){
-      listenerDashboardLinkEl.textContent = 'Enter the subscriber URL to create the dashboard link.';
-      listenerDashboardLinkEl.href = '#';
-      listenerDashboardLinkEl.setAttribute('aria-disabled', 'true');
-      if (btnOpenListenerDashboard) btnOpenListenerDashboard.disabled = true;
-      if (btnCopyListenerDashboard) btnCopyListenerDashboard.disabled = true;
-      return;
-    }
-
-    listenerDashboardLinkEl.textContent = dashboard;
-    listenerDashboardLinkEl.href = dashboard;
-    listenerDashboardLinkEl.removeAttribute('aria-disabled');
-    if (btnOpenListenerDashboard) btnOpenListenerDashboard.disabled = false;
-    if (btnCopyListenerDashboard) btnCopyListenerDashboard.disabled = false;
-  }
 
   function maskTokenForSubscription(token){
     const value = String(token || '');
@@ -4365,7 +4347,6 @@ function getRememberedSpecialParamValue(name){
 
   function updateSubscriptionUi(){
     if (!subscriptionPublisherEl) return;
-    updateListenerDashboardLink();
     const publisher = buildHookPublisher();
     subscriptionPublisherEl.value = publisher;
 
@@ -4720,6 +4701,78 @@ function getRememberedSpecialParamValue(name){
     }
   }
 
+  function validateNotificationLocationUrl(rawValue){
+    const raw = String(rawValue || '').trim();
+    if (!raw) throw new Error('Enter the complete location URL from the notification header.');
+
+    let locationUrl;
+    let selectedBase;
+    try { locationUrl = new URL(raw); }
+    catch (_) { throw new Error('Location must be a valid absolute URL.'); }
+
+    const base = buildBasePath();
+    if (!base) throw new Error('Select endpoint, client and instance first.');
+    try { selectedBase = new URL(base.replace(/\/+$/, '') + '/'); }
+    catch (_) { throw new Error('The selected API base URL is invalid.'); }
+
+    if (locationUrl.protocol !== 'https:') throw new Error('Location must use HTTPS.');
+    if (locationUrl.origin.toLowerCase() !== selectedBase.origin.toLowerCase()) {
+      throw new Error('Location belongs to a different Manus endpoint than the current selection.');
+    }
+
+    const selectedPath = selectedBase.pathname.replace(/\/+$/, '');
+    const locationPath = locationUrl.pathname.replace(/\/+$/, '');
+    if (!(locationPath === selectedPath || locationPath.startsWith(selectedPath + '/'))) {
+      throw new Error('Location does not belong to the selected client and instance.');
+    }
+    if (!locationPath.includes('/api/')) throw new Error('Location must point to a Manus API resource.');
+
+    return locationUrl.toString();
+  }
+
+  function resetNotificationLocationResult(){
+    if (notificationLocationResultEl) notificationLocationResultEl.hidden = true;
+    if (notificationLocationMetaEl) notificationLocationMetaEl.textContent = '';
+    if (notificationLocationRequestedUrlEl) notificationLocationRequestedUrlEl.textContent = '';
+    if (notificationLocationResponseEl) notificationLocationResponseEl.textContent = 'No response yet.';
+    if (btnCopyNotificationLocationResponse) btnCopyNotificationLocationResponse.disabled = true;
+  }
+
+  async function fetchNotificationLocation(){
+    if (!btnFetchNotificationLocation) return;
+    btnFetchNotificationLocation.disabled = true;
+    resetNotificationLocationResult();
+    setSubscriptionStatus(notificationLocationStatusEl, 'Fetching notification target...', '');
+
+    try {
+      const url = validateNotificationLocationUrl(notificationLocationUrlEl ? notificationLocationUrlEl.value : '');
+      const headers = Object.assign({ Accept: 'application/json' }, getAuthHeader());
+      const started = performance.now();
+      const response = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
+      const elapsed = Math.round(performance.now() - started);
+      const text = await response.text();
+      let body = text;
+      try { body = text ? JSON.parse(text) : null; } catch (_) {}
+      const formatted = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
+
+      if (notificationLocationResultEl) notificationLocationResultEl.hidden = false;
+      if (notificationLocationMetaEl) notificationLocationMetaEl.textContent = response.status + ' ' + response.statusText + ' · ' + elapsed + ' ms';
+      if (notificationLocationRequestedUrlEl) notificationLocationRequestedUrlEl.textContent = url;
+      if (notificationLocationResponseEl) notificationLocationResponseEl.textContent = formatted || '(empty response)';
+      if (btnCopyNotificationLocationResponse) btnCopyNotificationLocationResponse.disabled = !formatted;
+
+      if (!response.ok) {
+        setSubscriptionStatus(notificationLocationStatusEl, 'Request failed with HTTP ' + response.status + '.', 'danger');
+        return;
+      }
+      setSubscriptionStatus(notificationLocationStatusEl, 'Location data retrieved successfully.', 'ok');
+    } catch (e) {
+      setSubscriptionStatus(notificationLocationStatusEl, String(e && e.message ? e.message : e), 'danger');
+    } finally {
+      btnFetchNotificationLocation.disabled = false;
+    }
+  }
+
   async function createHookSubscription(){
     try {
       btnCreateSubscription.disabled = true;
@@ -4791,22 +4844,24 @@ function getRememberedSpecialParamValue(name){
   if (btnReloadHookEvents) btnReloadHookEvents.addEventListener('click', loadHookEvents);
   if (btnCreateSubscription) btnCreateSubscription.addEventListener('click', createHookSubscription);
   if (btnAddKnownSubscription) btnAddKnownSubscription.addEventListener('click', addKnownSubscription);
-  if (btnOpenListenerDashboard) btnOpenListenerDashboard.addEventListener('click', () => {
-    try {
-      const dashboard = parseListenerUrls(subscriptionSubscriberEl ? subscriptionSubscriberEl.value : '').dashboard;
-      window.open(dashboard, '_blank', 'noopener,noreferrer');
-    } catch (e) {
-      if (listenerDashboardStatusEl) listenerDashboardStatusEl.textContent = String(e && e.message ? e.message : e);
-    }
-  });
 
-  if (btnCopyListenerDashboard) btnCopyListenerDashboard.addEventListener('click', async () => {
+  if (btnFetchNotificationLocation) btnFetchNotificationLocation.addEventListener('click', fetchNotificationLocation);
+  if (notificationLocationUrlEl) notificationLocationUrlEl.addEventListener('keydown', event => {
+    if (event.key === 'Enter'){ event.preventDefault(); fetchNotificationLocation(); }
+  });
+  if (btnClearNotificationLocation) btnClearNotificationLocation.addEventListener('click', () => {
+    if (notificationLocationUrlEl) notificationLocationUrlEl.value = '';
+    resetNotificationLocationResult();
+    setSubscriptionStatus(notificationLocationStatusEl, 'Enter a location URL to retrieve its data.', '');
+  });
+  if (btnCopyNotificationLocationResponse) btnCopyNotificationLocationResponse.addEventListener('click', async () => {
     try {
-      const dashboard = parseListenerUrls(subscriptionSubscriberEl ? subscriptionSubscriberEl.value : '').dashboard;
-      await copyTextToClipboard(dashboard);
-      if (listenerDashboardStatusEl) listenerDashboardStatusEl.textContent = 'Dashboard URL copied.';
+      const text = notificationLocationResponseEl ? notificationLocationResponseEl.textContent : '';
+      if (!text) throw new Error('No response available to copy.');
+      await copyTextToClipboard(text);
+      setSubscriptionStatus(notificationLocationStatusEl, 'Response copied to clipboard.', 'ok');
     } catch (e) {
-      if (listenerDashboardStatusEl) listenerDashboardStatusEl.textContent = String(e && e.message ? e.message : e);
+      setSubscriptionStatus(notificationLocationStatusEl, String(e && e.message ? e.message : e), 'danger');
     }
   });
 
